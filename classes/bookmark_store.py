@@ -167,21 +167,21 @@ class BookmarkStore:
         # Build a category tree
         category_tree = {}
 
-        if results["ids"]:
-            for metadata in results["metadatas"]:
-                category = metadata.get("category", "")
-                if not category:
-                    continue
+        for metadata in results["metadatas"]:
+            category = metadata.get("category", "")
 
-                # Split the category path
-                path_parts = category.split("/")
+            if not category:
+                continue
 
-                # Build the tree
-                current = category_tree
-                for i, part in enumerate(path_parts):
-                    if part not in current:
-                        current[part] = {} if i < len(path_parts) - 1 else {}
-                    current = current[part]
+            # Split the category path
+            path_parts = category.split("/")
+
+            # Build the tree
+            current = category_tree
+            for i, part in enumerate(path_parts):
+                if part not in current:
+                    current[part] = {} if i < len(path_parts) - 1 else {}
+                current = current[part]
 
         return category_tree
 
@@ -196,17 +196,19 @@ class BookmarkStore:
         results = self.collection.get()
 
         categories = set()
-        if results["ids"]:
-            for metadata in results["metadatas"]:
-                category = metadata.get("category", "")
-                if category:
-                    categories.add(category)
 
-                    # Also add parent categories
-                    parts = category.split("/")
-                    for i in range(1, len(parts)):
-                        parent = "/".join(parts[:i])
-                        categories.add(parent)
+        for metadata in results["metadatas"]:
+            category = metadata.get("category", "")
+
+            if not category:
+                continue
+
+            # Split the category path
+            path_parts = category.split("/")
+
+            # Add all parts of the path to the set
+            for i in range(len(path_parts)):
+                categories.add("/".join(path_parts[: i + 1]))
 
         return sorted(list(categories))
 
