@@ -25,7 +25,7 @@ class Chat:
                 },
                 "category_guidance": {
                     "type": ["string", "null"],
-                    "description": "Optional guidance for categorizing the bookmark (e.g., 'put this in my Tech/AI section')",
+                    "description": "Optional guidance for how to categorize the bookmark",
                 },
             },
             "additionalProperties": False,
