@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from .website import Website
 
 
 @dataclass
@@ -11,11 +10,13 @@ class Bookmark:
         url (str): The URL of the bookmarked webpage
         title (str): The title of the bookmark
         summary (str): A brief description or summary of the webpage content
+        category (str): Category path using '/' as separator (e.g., "Tech/Programming/Python")
     """
 
     url: str
     title: str
     summary: str
+    category: str = ""  # Default to empty string (uncategorized)
 
     def __post_init__(self):
         """Validate bookmark attributes after initialization."""
@@ -29,6 +30,6 @@ class Bookmark:
         Returns a string representation of the bookmark suitable for storing in a vector database.
 
         Returns:
-            str: Formatted string containing the bookmark's title, summary, and URL
+            str: Formatted string containing the bookmark's title, category, URL, and summary
         """
-        return f"Title: {self.title}\nSummary: {self.summary}\nURL: {self.url}"
+        return f"Title: {self.title}\n\nCategory: {self.category}\n\nURL: {self.url}\n\nSummary: {self.summary}"
