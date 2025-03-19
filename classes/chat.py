@@ -17,12 +17,16 @@ class Chat:
         "description": "Adds a URL to the user's bookmarks",
         "parameters": {
             "type": "object",
-            "required": ["url"],
+            "required": ["url", "category_guidance"],
             "properties": {
                 "url": {
                     "type": "string",
                     "description": "The URL to be bookmarked",
-                }
+                },
+                "category_guidance": {
+                    "type": ["string", "null"],
+                    "description": "Optional guidance for categorizing the bookmark (e.g., 'put this in my Tech/AI section')",
+                },
             },
             "additionalProperties": False,
         },
@@ -40,7 +44,7 @@ class Chat:
         self.ai: AI = ai
         self.bookmark_store: BookmarkStore = bookmark_store
 
-    def add_bookmark(self, url: str) -> str:
+    def add_bookmark(self, url: str, category_guidance: str | None) -> str:
         """
         Fetches and summarizes the content from the provided URL,
         then creates a bookmark and stores it in the database.
@@ -71,7 +75,9 @@ class Chat:
             # Generate a category for the bookmark
             existing_categories = self.bookmark_store.get_all_categories()
             category = self.ai.generate_category(
-                bookmark, existing_categories=existing_categories
+                bookmark,
+                existing_categories=existing_categories,
+                category_guidance=category_guidance,
             )
             bookmark.category = category
 

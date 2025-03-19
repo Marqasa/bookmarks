@@ -85,19 +85,19 @@ class AI:
         self,
         bookmark: Bookmark,
         existing_categories: List[str] = [],
-        user_guidance: Optional[str] = None,
+        category_guidance: Optional[str] = None,
     ) -> str:
         """
         Generate an appropriate category for a bookmark using AI.
 
         Uses the bookmark title and summary along with existing categories (if provided)
-        to suggest the most appropriate category path. Optional user guidance can be provided
+        to suggest the most appropriate category path. Optional category guidance can be provided
         to influence the category selection.
 
         Args:
             bookmark (Bookmark): The bookmark object to categorize
             existing_categories (list[str], optional): List of existing category paths to use as reference
-            user_guidance (str, optional): User's guidance about desired categorization
+            category_guidance (str, optional): Guidance about desired categorization
 
         Returns:
             str: A category path string using '/' as separator (e.g., "Tech/Programming/Python")
@@ -110,21 +110,21 @@ class AI:
             )
 
         # Add user guidance if provided
-        user_guidance_text = ""
-        if user_guidance:
-            user_guidance_text = f"User guidance: {user_guidance}\n\n"
+        category_guidance_text = ""
+        if category_guidance:
+            category_guidance_text = f"Category guidance: {category_guidance}\n\n"
 
         # Create the prompt with bookmark information and existing categories
         prompt = (
             f"{categories_context}"
-            f"{user_guidance_text}"
+            f"{category_guidance_text}"
             f"Generate an appropriate category for this bookmark:\n"
             f"Title: {bookmark.title}\n"
             f"URL: {bookmark.url}\n"
             f"Summary: {bookmark.summary}\n\n"
             "The category should follow a hierarchical structure and be returned as an array of strings. "
             "If it fits an existing category, use that. Otherwise, create a logical new category. "
-            f"{'Incorporate user guidance into the category selection.' if user_guidance else ''}"
+            f"{'Incorporate category guidance when making a selection.' if category_guidance else ''}"
         )
 
         # Define the schema for structured output
