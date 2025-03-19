@@ -39,6 +39,20 @@ class BookmarkStore:
 
         return None
 
+    def delete_bookmark(self, url: str) -> None:
+        """
+        Delete a bookmark by its URL.
+
+        Args:
+            url (str): The URL of the bookmark to delete
+        """
+        # Query the collection with the URL as metadata filter
+        result = self.collection.get(where={"url": url})
+
+        if result["ids"] and len(result["ids"]) > 0:
+            # Delete the bookmark from the collection
+            self.collection.delete(ids=result["ids"])
+
     def add_bookmark(self, bookmark: Bookmark) -> None:
         """
         Add a bookmark to the vector database.
