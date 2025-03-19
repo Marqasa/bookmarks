@@ -209,3 +209,22 @@ class BookmarkStore:
                         categories.add(parent)
 
         return sorted(list(categories))
+
+    def get_all_bookmarks(self) -> List[Bookmark]:
+        """
+        Retrieve all bookmarks from the vector database.
+
+        Returns:
+            List[Bookmark]: A list of all bookmark objects
+        """
+        results = self.collection.get()
+        bookmarks: List[Bookmark] = []
+
+        if results["ids"]:
+            for i in range(len(results["ids"])):
+                bookmark = Bookmark.from_content_string(results["documents"][i])
+
+                if bookmark:
+                    bookmarks.append(bookmark)
+
+        return bookmarks
