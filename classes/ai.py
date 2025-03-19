@@ -1,11 +1,9 @@
 from classes.bookmark import Bookmark
 from classes.website import Website
 from openai import OpenAI
-from openai.types.responses.function_tool_param import FunctionToolParam
 from openai.types.responses.response import Response
-from openai.types.responses.response_input_param import ResponseInputParam
 from openai.types.responses.response_text_config_param import ResponseTextConfigParam
-from typing import List, Optional, Union
+from typing import List, Optional
 import json
 
 
@@ -14,7 +12,7 @@ class AI:
     A class that provides AI capabilities through the OpenAI API.
 
     This class handles interactions with OpenAI's models for tasks like
-    website summarization and chat functionality with tool capabilities.
+    website summarization and category generation.
     """
 
     DEFAULT_MODEL: str = "gpt-4o-mini"
@@ -40,23 +38,6 @@ class AI:
             },
             "strict": True,
         }
-    }
-    ADD_BOOKMARK_TOOL: FunctionToolParam = {
-        "type": "function",
-        "name": "add_bookmark",
-        "description": "Adds a URL to the user's bookmarks",
-        "parameters": {
-            "type": "object",
-            "required": ["url"],
-            "properties": {
-                "url": {
-                    "type": "string",
-                    "description": "The URL to be bookmarked",
-                }
-            },
-            "additionalProperties": False,
-        },
-        "strict": True,
     }
 
     def __init__(self, api_key: str, model: Optional[str] = None) -> None:
@@ -99,29 +80,6 @@ class AI:
         )
 
         return response.output_text.strip()
-
-    def chat(self, input: Union[str, ResponseInputParam]) -> Response:
-        """
-        Send a chat message to the AI and receive a response.
-
-        This method allows for interactive conversations with the AI model
-        and includes the add_bookmark tool for bookmarking functionality.
-
-        Args:
-            input (Union[str, ResponseInputParam]): The user input message or a
-                                                   ResponseInputParam object
-
-        Returns:
-            Response: The AI's response object containing the generated content
-                     and any tool calls
-        """
-        response: Response = self.client.responses.create(
-            model=self.model,
-            input=input,
-            tools=[self.ADD_BOOKMARK_TOOL],
-        )
-
-        return response
 
     def generate_category(
         self,

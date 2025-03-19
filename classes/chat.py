@@ -1,13 +1,34 @@
-import gradio as gr
-import json
-from typing import Any, Dict, List, Optional, Union
 from classes.ai import AI
-from classes.website import Website
 from classes.bookmark import Bookmark
 from classes.bookmark_store import BookmarkStore
+from classes.website import Website
+from gradio import MessageDict
+from openai.types.responses.function_tool_param import FunctionToolParam
+from openai.types.responses.response import Response
+from typing import Any, Dict, List
+import gradio as gr
+import json
 
 
 class Chat:
+    ADD_BOOKMARK_TOOL: FunctionToolParam = {
+        "type": "function",
+        "name": "add_bookmark",
+        "description": "Adds a URL to the user's bookmarks",
+        "parameters": {
+            "type": "object",
+            "required": ["url"],
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "The URL to be bookmarked",
+                }
+            },
+            "additionalProperties": False,
+        },
+        "strict": True,
+    }
+
     def __init__(self, ai: AI, bookmark_store: BookmarkStore) -> None:
         """
         Initialize the Chat with AI and BookmarkStore instances.
@@ -62,7 +83,7 @@ class Chat:
         except Exception as e:
             return f"Error occurred: {str(e)}"
 
-    def chat_with_ai(self, message: str, history: List[Dict[str, str]]) -> str:
+    def chat(self, message: str, history: List[MessageDict]) -> str:
         """
         Chat with the AI and process any tool calls.
 
@@ -73,7 +94,7 @@ class Chat:
         Returns:
             str: The AI's response
         """
-        # Get response from AI
+        # Format chat input
         chat_input = []
         for item in history:
             clean_item = {"role": item["role"], "content": item["content"]}
@@ -81,7 +102,12 @@ class Chat:
 
         chat_input.append({"role": "user", "content": message})
 
-        response = self.ai.chat(chat_input)
+        # Create a response with the AI
+        response: Response = self.ai.client.responses.create(
+            model=self.ai.model,
+            input=chat_input,
+            tools=[self.ADD_BOOKMARK_TOOL],
+        )
 
         tool_called = False
 
@@ -106,7 +132,12 @@ class Chat:
 
         # If a tool was called, inform the AI
         if tool_called:
-            response = self.ai.chat(chat_input)
+            # Recreate the chat input with the tool call
+            response = self.ai.client.responses.create(
+                model=self.ai.model,
+                input=chat_input,
+                tools=[self.ADD_BOOKMARK_TOOL],
+            )
 
         return response.output_text
 
@@ -140,7 +171,7 @@ class Chat:
             gr.ChatInterface: The Gradio chat interface
         """
         return gr.ChatInterface(
-            fn=self.chat_with_ai,
+            fn=self.chat,
             type="messages",
             title=title,
             description=description,
