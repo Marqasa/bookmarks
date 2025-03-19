@@ -49,19 +49,19 @@ class Chat:
             url (str): The website URL to fetch
 
         Returns:
-            str: The bookmark content string and status message
+            str: JSON string containing status, message, and bookmark data
         """
         try:
             # Check if the URL already exists in the database
-            if self.bookmark_store.url_exists(url):
-                # Retrieve existing bookmarks with this URL
-                results = self.bookmark_store.search_bookmarks(
-                    query="URL lookup", n_results=1
+            existing_bookmark = self.bookmark_store.get_bookmark_by_url(url)
+            if existing_bookmark:
+                return json.dumps(
+                    {
+                        "status": "exists",
+                        "message": "Bookmark already exists",
+                        "bookmark": existing_bookmark.to_content_string(),
+                    }
                 )
-                if results:
-                    return f"**Bookmark already exists:**\n\n{results[0]['content']}"
-                else:
-                    return f"Bookmark with URL {url} exists but couldn't be retrieved."
 
             # Create a new bookmark
             website = Website(url)
@@ -78,10 +78,22 @@ class Chat:
             # Store the bookmark in the database
             self.bookmark_store.add_bookmark(bookmark)
 
-            # Return the formatted bookmark content
-            return f"**New bookmark created:**\n\n{bookmark.to_content_string()}"
+            # Return the bookmark data as JSON
+            return json.dumps(
+                {
+                    "status": "created",
+                    "message": "New bookmark created",
+                    "bookmark": bookmark.to_content_string(),
+                }
+            )
         except Exception as e:
-            return f"Error occurred: {str(e)}"
+            return json.dumps(
+                {
+                    "status": "error",
+                    "message": f"Error occurred: {str(e)}",
+                    "bookmark": None,
+                }
+            )
 
     def chat(self, message: str, history: List[MessageDict]) -> str:
         """

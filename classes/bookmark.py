@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass
@@ -33,3 +34,26 @@ class Bookmark:
             str: Formatted string containing the bookmark's title, category, URL, and summary
         """
         return f"Title: {self.title}\n\nCategory: {self.category}\n\nURL: {self.url}\n\nSummary: {self.summary}"
+
+    @classmethod
+    def from_content_string(cls, content: str) -> Optional["Bookmark"]:
+        """
+        Creates a Bookmark instance from a content string.
+
+        Args:
+            content (str): The content string containing the bookmark's title, category, URL, and summary
+
+        Returns:
+            Optional[Bookmark]: A new Bookmark instance or None if parsing fails
+        """
+        try:
+            lines = content.split("\n\n")
+            if len(lines) < 4:
+                return None
+            title = lines[0].replace("Title: ", "")
+            category = lines[1].replace("Category: ", "")
+            url = lines[2].replace("URL: ", "")
+            summary = lines[3].replace("Summary: ", "")
+            return cls(url=url, title=title, summary=summary, category=category)
+        except Exception:
+            return None

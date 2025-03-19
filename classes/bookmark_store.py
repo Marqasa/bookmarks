@@ -1,5 +1,5 @@
 import chromadb
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from .bookmark import Bookmark
 
 
@@ -21,23 +21,23 @@ class BookmarkStore:
         self.client = chromadb.PersistentClient("./chroma_db")
         self.collection = self.client.get_or_create_collection(collection_name)
 
-    def url_exists(self, url: str) -> bool:
+    def get_bookmark_by_url(self, url: str) -> Optional[Bookmark]:
         """
-        Check if a URL already exists in the database.
+        Retrieve a bookmark by its URL.
 
         Args:
-            url (str): The URL to check
+            url (str): The URL to search for
 
         Returns:
-            bool: True if the URL exists, False otherwise
+            Optional[Bookmark]: The bookmark object if found, None otherwise
         """
         # Query the collection with the URL as metadata filter
-        results = self.collection.query(
-            query_texts=["URL lookup"], where={"url": url}, n_results=1
-        )
+        result = self.collection.get(where={"url": url}, limit=1)
 
-        # If we got any results, the URL exists
-        return bool(results["ids"] and len(results["ids"][0]) > 0)
+        if result["documents"] and len(result["documents"]) > 0:
+            return Bookmark.from_content_string(result["documents"][0])
+
+        return None
 
     def add_bookmark(self, bookmark: Bookmark) -> None:
         """
