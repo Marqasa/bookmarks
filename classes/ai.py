@@ -25,12 +25,8 @@ class AI:
                 "type": "object",
                 "properties": {
                     "category": {
-                        "type": "array",
-                        "description": "An array representing the hierarchical category path for the bookmark",
-                        "items": {
-                            "type": "string",
-                            "description": "A string representing a part of the category path",
-                        },
+                        "type": "string",
+                        "description": "A category path string using '/' as separator (e.g., 'Category/Subcategory')",
                     },
                 },
                 "required": ["category"],
@@ -122,8 +118,8 @@ class AI:
             f"Title: {bookmark.title}\n"
             f"URL: {bookmark.url}\n"
             f"Summary: {bookmark.summary}\n\n"
-            "The category should follow a hierarchical structure and be returned as an array of strings. "
-            "If it fits an existing category, use that. Otherwise, create a logical new category. "
+            "The category should follow a hierarchical structure and be returned as a string with '/' as the separator. "
+            f"{'If it fits an existing category, use that. Otherwise, create a logical new category.' if categories_context else ''}"
             f"{'Incorporate category guidance when making a selection.' if category_guidance else ''}"
         )
 
@@ -134,10 +130,4 @@ class AI:
             text=self.CATEGORY_SCHEMA,
         )
 
-        # Parse the structured output and return just the category
-        result = json.loads(response.output_text)
-
-        # Convert the category array to a string path using '/' as separator
-        category_path = "/".join(result["category"])
-
-        return category_path
+        return response.output_text

@@ -25,7 +25,7 @@ class Chat:
                 },
                 "category_guidance": {
                     "type": ["string", "null"],
-                    "description": "Optional guidance for how to categorize the bookmark",
+                    "description": "This should be null unless the user has a specific category in mind.",
                 },
             },
             "additionalProperties": False,

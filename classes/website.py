@@ -73,4 +73,4 @@ class Website:
         Returns:
             str: A formatted string containing the webpage title and main text content
         """
-        return f"Title:\n{self.title}\n\nContents:\n{self.text}"
+        return f"Title:\n{self.title}\n\nURL:{self.url}\n\nContents:\n{self.text}"
