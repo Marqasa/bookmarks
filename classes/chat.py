@@ -32,6 +32,23 @@ class Chat:
         },
         "strict": True,
     }
+    DELETE_BOOKMARK_TOOL: FunctionToolParam = {
+        "type": "function",
+        "name": "delete_bookmark",
+        "description": "Deletes a URL from the user's bookmarks",
+        "parameters": {
+            "type": "object",
+            "required": ["url"],
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "The URL to be deleted from bookmarks",
+                },
+            },
+            "additionalProperties": False,
+        },
+        "strict": True,
+    }
 
     def __init__(self, ai: AI, bookmark_store: BookmarkStore) -> None:
         """
@@ -101,6 +118,44 @@ class Chat:
                 }
             )
 
+    def delete_bookmark(self, url: str) -> str:
+        """
+        Deletes a bookmark from the database using the provided URL.
+
+        Args:
+            url (str): The website URL to delete
+        Returns:
+            str: JSON string containing status and message
+        """
+        try:
+            # Check if the URL exists in the database
+            existing_bookmark = self.bookmark_store.get_bookmark_by_url(url)
+            if not existing_bookmark:
+                return json.dumps(
+                    {
+                        "status": "not_found",
+                        "message": "Bookmark not found",
+                    }
+                )
+
+            # Delete the bookmark from the database
+            self.bookmark_store.delete_bookmark(existing_bookmark.url)
+
+            # Return success message
+            return json.dumps(
+                {
+                    "status": "deleted",
+                    "message": "Bookmark deleted successfully",
+                }
+            )
+        except Exception as e:
+            return json.dumps(
+                {
+                    "status": "error",
+                    "message": f"Error occurred: {str(e)}",
+                }
+            )
+
     def chat(self, message: str, history: List[MessageDict]) -> str:
         """
         Chat with the AI and process any tool calls.
@@ -124,7 +179,7 @@ class Chat:
         response: Response = self.ai.client.responses.create(
             model=self.ai.model,
             input=chat_input,
-            tools=[self.ADD_BOOKMARK_TOOL],
+            tools=[self.ADD_BOOKMARK_TOOL, self.DELETE_BOOKMARK_TOOL],
         )
 
         tool_called = False
@@ -170,8 +225,11 @@ class Chat:
         Returns:
             Any: The result of the function call
         """
-        if name == "add_bookmark":
-            return self.add_bookmark(**args)
+        match name:
+            case "delete_bookmark":
+                return self.delete_bookmark(**args)
+            case "add_bookmark":
+                return self.add_bookmark(**args)
 
     def create_ui(
         self,
