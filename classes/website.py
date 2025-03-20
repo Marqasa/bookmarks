@@ -30,6 +30,7 @@ class Website:
             self.body = self._fetch_content()
             soup = BeautifulSoup(self.body, "html.parser")
             self.title = self._extract_title(soup)
+            self.description = self._extract_description(soup)
             self.text = self._extract_text(soup)
         except RequestException as e:
             self.body = None
@@ -71,13 +72,19 @@ class Website:
         """Extract the page title from the soup object."""
         return soup.title.string if soup.title else "No title found"
 
+    def _extract_description(self, soup):
+        """Extract the page description from the soup object."""
+        description = soup.find("meta", attrs={"name": "description"})
+
+        return description["content"] if description else "No description found"
+
     def _extract_text(self, soup):
         """Extract the main text content from the soup object."""
         if not soup.body:
             return ""
 
         # Remove non-content elements
-        for tag in soup.body(["script", "style", "img", "input", "meta", "noscript"]):
+        for tag in soup.body(["script", "style", "img", "input", "noscript"]):
             tag.decompose()
 
         return soup.body.get_text(separator="\n", strip=True)

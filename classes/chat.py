@@ -86,8 +86,9 @@ class Chat:
 
             # Create a new bookmark
             website = Website(url)
-            summary = self.ai.summarize_website(website)
-            bookmark = Bookmark(url=url, title=website.title, summary=summary)
+            bookmark = Bookmark(
+                url=url, title=website.title, summary=website.description
+            )
 
             # Generate a category for the bookmark
             existing_categories = self.bookmark_store.get_all_categories()
