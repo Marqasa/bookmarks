@@ -49,6 +49,27 @@ class Chat:
         },
         "strict": True,
     }
+    SEARCH_BOOKMARK_TOOL: FunctionToolParam = {
+        "type": "function",
+        "name": "search_bookmark",
+        "description": "Searches for relevant bookmarks based on the user's query",
+        "parameters": {
+            "type": "object",
+            "required": ["query", "max_results"],
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The search query to find bookmarks",
+                },
+                "max_results": {
+                    "type": ["integer", "null"],
+                    "description": "Should be null unless the user has a specific number of results in mind.",
+                },
+            },
+            "additionalProperties": False,
+        },
+        "strict": True,
+    }
 
     def __init__(self, ai: AI, bookmark_store: BookmarkStore) -> None:
         """
@@ -157,6 +178,39 @@ class Chat:
                 }
             )
 
+    def search_bookmark(self, query: str, max_results: int | None) -> str:
+        """
+        Searches for bookmarks that match the provided query.
+
+        Args:
+            query (str): The search query
+        Returns:
+            str: JSON string containing status and matching bookmarks
+        """
+        try:
+            # Search for bookmarks in the database
+            matching_bookmarks = self.bookmark_store.search_bookmarks(
+                query, n_results=max_results or 5
+            )
+
+            # Return the matching bookmarks as JSON
+            return json.dumps(
+                {
+                    "status": "found",
+                    "message": "Bookmarks found",
+                    "bookmarks": [
+                        bookmark.to_content_string() for bookmark in matching_bookmarks
+                    ],
+                }
+            )
+        except Exception as e:
+            return json.dumps(
+                {
+                    "status": "error",
+                    "message": f"Error occurred: {str(e)}",
+                }
+            )
+
     def chat(self, message: str, history: List[MessageDict]) -> str:
         """
         Chat with the AI and process any tool calls.
@@ -180,7 +234,11 @@ class Chat:
         response: Response = self.ai.client.responses.create(
             model=self.ai.model,
             input=chat_input,
-            tools=[self.ADD_BOOKMARK_TOOL, self.DELETE_BOOKMARK_TOOL],
+            tools=[
+                self.ADD_BOOKMARK_TOOL,
+                self.DELETE_BOOKMARK_TOOL,
+                self.SEARCH_BOOKMARK_TOOL,
+            ],
         )
 
         tool_called = False
@@ -210,7 +268,11 @@ class Chat:
             response = self.ai.client.responses.create(
                 model=self.ai.model,
                 input=chat_input,
-                tools=[self.ADD_BOOKMARK_TOOL],
+                tools=[
+                    self.ADD_BOOKMARK_TOOL,
+                    self.DELETE_BOOKMARK_TOOL,
+                    self.SEARCH_BOOKMARK_TOOL,
+                ],
             )
 
         return response.output_text
@@ -231,6 +293,8 @@ class Chat:
                 return self.delete_bookmark(**args)
             case "add_bookmark":
                 return self.add_bookmark(**args)
+            case "search_bookmark":
+                return self.search_bookmark(**args)
 
     def create_ui(
         self,
@@ -266,4 +330,4 @@ class Chat:
             Any: The result of launching the interface
         """
         chat_interface = self.create_ui()
-        return chat_interface.launch(inbrowser=inbrowser, **kwargs)
+        return chat_interface.launch(**kwargs)
