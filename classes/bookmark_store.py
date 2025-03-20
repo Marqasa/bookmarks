@@ -1,4 +1,5 @@
 import chromadb
+from chromadb import QueryResult, GetResult
 from typing import List, Dict, Any, Optional
 from .bookmark import Bookmark
 
@@ -31,7 +32,6 @@ class BookmarkStore:
         Returns:
             Optional[Bookmark]: The bookmark object if found, None otherwise
         """
-        # Query the collection with the URL as metadata filter
         result = self.collection.get(where={"url": url}, limit=1)
 
         if result["documents"] and len(result["documents"]) > 0:
@@ -46,11 +46,9 @@ class BookmarkStore:
         Args:
             url (str): The URL of the bookmark to delete
         """
-        # Query the collection with the URL as metadata filter
         result = self.collection.get(where={"url": url})
 
         if result["ids"] and len(result["ids"]) > 0:
-            # Delete the bookmark from the collection
             self.collection.delete(ids=result["ids"])
 
     def add_bookmark(self, bookmark: Bookmark) -> None:
@@ -61,17 +59,12 @@ class BookmarkStore:
         Args:
             bookmark (Bookmark): The bookmark to add
         """
-        # Generate a unique ID based on the URL
         bookmark_id = f"bookmark_{abs(hash(bookmark.url))}"
-
-        # Check if the bookmark already exists
         existing_bookmarks = self.collection.get(where={"url": bookmark.url})
 
         if existing_bookmarks and len(existing_bookmarks["ids"]) > 0:
-            # Delete the existing bookmarks with this URL
             self.collection.delete(ids=existing_bookmarks["ids"])
 
-        # Add the bookmark to the collection with category metadata
         self.collection.add(
             documents=[bookmark.to_content_string()],
             metadatas=[
@@ -84,7 +77,7 @@ class BookmarkStore:
             ids=[bookmark_id],
         )
 
-    def search_bookmarks(self, query: str, n_results: int = 5) -> List[Dict[str, Any]]:
+    def search_bookmarks(self, query: str, n_results: int = 5) -> List[Bookmark]:
         """
         Search for bookmarks similar to the query.
 
@@ -93,25 +86,13 @@ class BookmarkStore:
             n_results (int): Maximum number of results to return
 
         Returns:
-            List[Dict[str, Any]]: List of matching bookmarks with their metadata
+            List[Bookmark]: List of Bookmark objects matching the query
         """
         results = self.collection.query(query_texts=[query], n_results=n_results)
 
-        # Format the results
-        bookmarks = []
-        if results["ids"] and len(results["ids"][0]) > 0:
-            for i in range(len(results["ids"][0])):
-                bookmarks.append(
-                    {
-                        "id": results["ids"][0][i],
-                        "content": results["documents"][0][i],
-                        "metadata": results["metadatas"][0][i],
-                    }
-                )
+        return self._get_bookmarks_from_result(results)
 
-        return bookmarks
-
-    def get_bookmarks_by_category(self, category: str) -> List[Dict[str, Any]]:
+    def get_bookmarks_by_category(self, category: str) -> List[Bookmark]:
         """
         Get all bookmarks in a specific category.
         For hierarchical categories, this will match the exact path.
@@ -120,26 +101,13 @@ class BookmarkStore:
             category (str): The category path to filter by
 
         Returns:
-            List[Dict[str, Any]]: List of bookmarks in the category
+            List[Bookmark]: List of bookmarks in the category
         """
         results = self.collection.get(where={"category": category})
 
-        bookmarks = []
-        if results["ids"]:
-            for i in range(len(results["ids"])):
-                bookmarks.append(
-                    {
-                        "id": results["ids"][i],
-                        "content": results["documents"][i],
-                        "metadata": results["metadatas"][i],
-                    }
-                )
+        return self._get_bookmarks_from_result(results)
 
-        return bookmarks
-
-    def get_bookmarks_by_category_prefix(
-        self, category_prefix: str
-    ) -> List[Dict[str, Any]]:
+    def get_bookmarks_by_category_prefix(self, category_prefix: str) -> List[Bookmark]:
         """
         Get all bookmarks in a category and its subcategories.
 
@@ -147,24 +115,21 @@ class BookmarkStore:
             category_prefix (str): The category prefix to filter by
 
         Returns:
-            List[Dict[str, Any]]: List of bookmarks in the category and subcategories
+            List[Bookmark]: List of bookmarks in the category and subcategories
         """
-        # Get all bookmarks
         results = self.collection.get()
+        bookmarks: List[Bookmark] = []
 
-        bookmarks = []
-        if results["ids"]:
-            for i in range(len(results["ids"])):
-                metadata = results["metadatas"][i]
-                # Check if the bookmark's category starts with the given prefix
-                if metadata.get("category", "").startswith(category_prefix):
-                    bookmarks.append(
-                        {
-                            "id": results["ids"][i],
-                            "content": results["documents"][i],
-                            "metadata": metadata,
-                        }
-                    )
+        for i in range(len(results["ids"])):
+            metadata = results["metadatas"][i]
+
+            if not metadata.get("category", "").startswith(category_prefix):
+                continue
+
+            bookmark = Bookmark.from_content_string(results["documents"][i])
+
+            if bookmark:
+                bookmarks.append(bookmark)
 
         return bookmarks
 
@@ -175,11 +140,8 @@ class BookmarkStore:
         Returns:
             Dict[str, Any]: A nested dictionary representing the category hierarchy
         """
-        # Get all bookmarks' metadata
         results = self.collection.get()
-
-        # Build a category tree
-        category_tree = {}
+        category_tree: Dict[str, Any] = {}
 
         for metadata in results["metadatas"]:
             category = metadata.get("category", "")
@@ -187,10 +149,7 @@ class BookmarkStore:
             if not category:
                 continue
 
-            # Split the category path
             path_parts = category.split("/")
-
-            # Build the tree
             current = category_tree
             for i, part in enumerate(path_parts):
                 if part not in current:
@@ -206,9 +165,7 @@ class BookmarkStore:
         Returns:
             List[str]: A list of all category paths
         """
-        # Get all bookmarks' metadata
         results = self.collection.get()
-
         categories = set()
 
         for metadata in results["metadatas"]:
@@ -217,10 +174,7 @@ class BookmarkStore:
             if not category:
                 continue
 
-            # Split the category path
             path_parts = category.split("/")
-
-            # Add all parts of the path to the set
             for i in range(len(path_parts)):
                 categories.add("/".join(path_parts[: i + 1]))
 
@@ -234,13 +188,35 @@ class BookmarkStore:
             List[Bookmark]: A list of all bookmark objects
         """
         results = self.collection.get()
+
+        return self._get_bookmarks_from_result(results)
+
+    def _get_bookmarks_from_result(
+        self, result: GetResult | QueryResult
+    ) -> List[Bookmark]:
+        """
+        Helper method to convert ChromaDB query results into Bookmark objects.
+
+        This method handles both GetResult and QueryResult types from ChromaDB and
+        properly processes document structures that might be nested (like in QueryResult).
+
+        Args:
+            result (Union[GetResult, QueryResult]): The result from a vector database
+                                                   query or get operation
+
+        Returns:
+            List[Bookmark]: A list of Bookmark objects parsed from the result documents
+        """
         bookmarks: List[Bookmark] = []
+        documents = result["documents"]
 
-        if results["ids"]:
-            for i in range(len(results["ids"])):
-                bookmark = Bookmark.from_content_string(results["documents"][i])
+        if documents and isinstance(documents[0], list):
+            documents = [doc for sublist in documents for doc in sublist]
 
-                if bookmark:
-                    bookmarks.append(bookmark)
+        for document in documents:
+            bookmark = Bookmark.from_content_string(document)
+
+            if bookmark:
+                bookmarks.append(bookmark)
 
         return bookmarks
