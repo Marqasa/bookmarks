@@ -1,6 +1,7 @@
-import requests
 from bs4 import BeautifulSoup
 from requests.exceptions import RequestException
+from urllib.parse import urlparse
+import requests
 
 
 class Website:
@@ -37,7 +38,7 @@ class Website:
 
     def _fetch_content(self):
         """
-        Fetch the content from the URL.
+        Fetch the content from the base URL.
 
         Returns:
             bytes: The response content
@@ -45,11 +46,26 @@ class Website:
         Raises:
             RequestException: If the request fails or returns a non-200 status code
         """
+        base_url = self._get_base_url(self.url)
         response = requests.get(
-            self.url, headers={"User-Agent": self.user_agent}, timeout=self.timeout
+            base_url, headers={"User-Agent": self.user_agent}, timeout=self.timeout
         )
         response.raise_for_status()  # Raise exception for 4XX/5XX responses
         return response.content
+
+    def _get_base_url(self, url):
+        """
+        Extract the base URL from the given URL.
+
+        Args:
+            url (str): The URL to extract the base from
+
+        Returns:
+            str: The base URL
+        """
+
+        parsed_url = urlparse(url)
+        return f"{parsed_url.scheme}://{parsed_url.netloc}"
 
     def _extract_title(self, soup):
         """Extract the page title from the soup object."""
@@ -73,4 +89,4 @@ class Website:
         Returns:
             str: A formatted string containing the webpage title and main text content
         """
-        return f"Title:\n{self.title}\n\nURL:{self.url}\n\nContents:\n{self.text}"
+        return f"Title:\n{self.title}\n\nURL:\n{self.url}\n\nContents:\n{self.text}"

@@ -2,6 +2,7 @@ from classes.bookmark import Bookmark
 from classes.website import Website
 from openai import OpenAI
 from openai.types.responses.response import Response
+from openai.types.responses.response_input_param import ResponseInputParam
 from openai.types.responses.response_text_config_param import ResponseTextConfigParam
 from typing import List, Optional
 import json
@@ -63,13 +64,16 @@ class AI:
         """
         website_content: str = website.get_page_contents()
 
-        prompt: str = (
-            "Create a concise summary (1-2 sentences) of the following website content "
-            "that would be perfect for a bookmark description. "
-            "The summary should clearly convey what the page contains and why someone "
-            "might find it valuable, without being too lengthy.\n\n"
-            f"{website_content}"
-        )
+        prompt: ResponseInputParam = [
+            {
+                "role": "developer",
+                "content": "You are an expert summarizer. You will be provided with a website's title, url, and content. Your task is to summarize the content in a concise manner. If you do not have enough information, provide the best summary possible based on the given data.",
+            },
+            {
+                "role": "user",
+                "content": f"{website_content}",
+            },
+        ]
 
         response: Response = self.client.responses.create(
             model=self.model, input=prompt
@@ -130,4 +134,10 @@ class AI:
             text=self.CATEGORY_SCHEMA,
         )
 
-        return response.output_text
+        # Parse the JSON response
+        result = json.loads(response.output_text)
+
+        # Extract the category from the response
+        category = result["category"]
+
+        return category
