@@ -99,6 +99,8 @@ class Chat:
             self.SEARCH_BOOKMARKS_TOOL,
             self.GET_CATEGORIES_TOOL,
         ]
+        self.chat_history: ResponseInputParam = []
+        self.chat_history_limit: int = 10
 
     def add_bookmark(self, url: str, category_guidance: str | None) -> str:
         """
@@ -268,59 +270,67 @@ class Chat:
         Returns:
             str: The AI's response
         """
-        # Format chat input
-        chat_input = []
-        for item in history:
-            clean_item = {"role": item["role"], "content": item["content"]}
-            chat_input.append(clean_item)
+        try:
+            # Clear chat history if history is empty
+            if not history:
+                self.chat_history = []
 
-        chat_input.append({"role": "user", "content": message})
+            self.chat_history.append({"role": "user", "content": message})
 
-        # Create a response with the AI
-        response: Response = self.ai.client.responses.create(
-            model=self.ai.model,
-            input=chat_input,
-            tools=self.tools,
-        )
-
-        tool_called = False
-
-        # Check for tool calls
-        for tool_call in response.output:
-            if tool_call.type != "function_call":
-                continue
-
-            tool_called = True
-            name = tool_call.name
-            args = json.loads(tool_call.arguments)
-
-            result = self.call_function(name, args)
-            chat_input.append(tool_call)
-            chat_input.append(
-                {
-                    "type": "function_call_output",
-                    "call_id": tool_call.call_id,
-                    "output": str(result),
-                }
-            )
-
-        # If a tool was called, inform the AI
-        if tool_called:
-            chat_input.append(
-                {
-                    "role": "developer",
-                    "content": "If you need to perform follow-up actions, confirm with the user first.",
-                }
-            )
-            # Recreate the chat input with the tool call
-            response = self.ai.client.responses.create(
+            # Create a response with the AI
+            response: Response = self.ai.client.responses.create(
                 model=self.ai.model,
-                input=chat_input,
+                input=self.chat_history,
                 tools=self.tools,
-                tool_choice="none",
             )
 
-        return response.output_text
+            tool_called = False
+
+            # Process response output
+            for item in response.output:
+                self.chat_history.append(item)
+
+                if item.type != "function_call":
+                    continue
+
+                tool_called = True
+                name = item.name
+                args = json.loads(item.arguments)
+
+                result = self.call_function(name, args)
+                self.chat_history.append(
+                    {
+                        "type": "function_call_output",
+                        "call_id": item.call_id,
+                        "output": str(result),
+                    }
+                )
+
+            # If a tool was called, inform the AI
+            if tool_called:
+                self.chat_history.append(
+                    {
+                        "role": "developer",
+                        "content": "If you need to perform follow-up actions, confirm with the user first.",
+                    }
+                )
+                # Recreate the chat input with the tool call
+                response = self.ai.client.responses.create(
+                    model=self.ai.model,
+                    input=self.chat_history,
+                    tools=self.tools,
+                    tool_choice="none",
+                )
+
+            # Limit chat history
+            if len(self.chat_history) > self.chat_history_limit:
+                self.chat_history = self.chat_history[-self.chat_history_limit :]
+
+            return response.output_text
+        except Exception as e:
+            # Log the error and return a user-friendly message
+            print(f"Error in chat method: {str(e)}")
+            return f"I encountered an error while processing your request. Please try again."
 
     def call_function(self, name: str, args: Dict[str, Any]) -> Any:
         """
