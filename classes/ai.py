@@ -90,54 +90,54 @@ class AI:
         """
         Generate an appropriate category for a bookmark using AI.
 
-        Uses the bookmark title and summary along with existing categories (if provided)
-        to suggest the most appropriate category path. Optional category guidance can be provided
-        to influence the category selection.
-
         Args:
             bookmark (Bookmark): The bookmark object to categorize
             existing_categories (list[str], optional): List of existing category paths to use as reference
             category_guidance (str, optional): Guidance about desired categorization
 
         Returns:
-            str: A category path string using '/' as separator (e.g., "Tech/Programming/Python")
+            str: A category path string using '/' as separator (e.g., "Category/Subcategory")
         """
-        # Prepare the existing categories as a string if provided
-        categories_context = ""
-        if existing_categories and len(existing_categories) > 0:
-            categories_context = (
-                "Existing categories:\n" + "\n".join(existing_categories) + "\n\n"
-            )
-
-        # Add user guidance if provided
-        category_guidance_text = ""
-        if category_guidance:
-            category_guidance_text = f"Category guidance: {category_guidance}\n\n"
-
-        # Create the prompt with bookmark information and existing categories
-        prompt = (
-            f"{categories_context}"
-            f"{category_guidance_text}"
-            f"Generate an appropriate category for this bookmark:\n"
-            f"Title: {bookmark.title}\n"
-            f"URL: {bookmark.url}\n"
-            f"Summary: {bookmark.summary}\n\n"
-            "The category should follow a hierarchical structure and be returned as a string with '/' as the separator. "
-            f"{'If it fits an existing category, use that. Otherwise, create a logical new category.' if categories_context else ''}"
-            f"{'Incorporate category guidance when making a selection.' if category_guidance else ''}"
+        # Build developer instructions
+        developer_content = (
+            "You are a bookmark categorization expert. Generate an appropriate category "
+            "for a bookmark based on its title, URL, and summary. The category should follow "
+            "a hierarchical structure using '/' as the separator (e.g., 'Category/Subcategory')."
         )
 
-        # Define the schema for structured output
+        if existing_categories:
+            developer_content += " Try to use existing categories when appropriate."
+
+        if category_guidance:
+            developer_content += (
+                " Consider the provided category guidance in your selection."
+            )
+
+        # Build user content with bookmark details
+        user_content = f"Bookmark to categorize:\nTitle: {bookmark.title}\nURL: {bookmark.url}\nSummary: {bookmark.summary}\n\n"
+
+        if existing_categories:
+            user_content = (
+                f"Existing categories:\n{'\n'.join(existing_categories)}\n\n"
+                + user_content
+            )
+
+        if category_guidance:
+            user_content = f"Category guidance:\n{category_guidance}\n\n" + user_content
+
+        # Create the prompt
+        prompt: ResponseInputParam = [
+            {"role": "developer", "content": developer_content},
+            {"role": "user", "content": user_content},
+        ]
+
+        # Make API call
         response = self.client.responses.create(
             model=self.model,
             input=prompt,
             text=self.CATEGORY_SCHEMA,
         )
 
-        # Parse the JSON response
+        # Parse and return the category
         result = json.loads(response.output_text)
-
-        # Extract the category from the response
-        category = result["category"]
-
-        return category
+        return result["category"]
