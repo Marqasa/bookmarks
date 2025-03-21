@@ -5,6 +5,7 @@ from classes.website import Website
 from gradio import MessageDict
 from openai.types.responses.function_tool_param import FunctionToolParam
 from openai.types.responses.response import Response
+from openai.types.responses.response_input_param import ResponseInputParam
 from typing import Any, Dict, List
 import gradio as gr
 import json
@@ -49,21 +50,21 @@ class Chat:
         },
         "strict": True,
     }
-    SEARCH_BOOKMARK_TOOL: FunctionToolParam = {
+    SEARCH_BOOKMARKS_TOOL: FunctionToolParam = {
         "type": "function",
-        "name": "search_bookmark",
-        "description": "Searches for relevant bookmarks based on the user's query",
+        "name": "search_bookmarks",
+        "description": "Searches for relevant bookmarks using input query. Returns a list of bookmarks including URL, Title, Summary, and Category.",
         "parameters": {
             "type": "object",
             "required": ["query", "max_results"],
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "The search query to find bookmarks",
+                    "description": "The search query to find relevant bookmarks",
                 },
                 "max_results": {
                     "type": "integer",
-                    "description": "The maximum number of results to return",
+                    "description": "Maximum number of search results to return",
                 },
             },
             "additionalProperties": False,
@@ -95,7 +96,7 @@ class Chat:
         self.tools: List[FunctionToolParam] = [
             self.ADD_BOOKMARK_TOOL,
             self.DELETE_BOOKMARK_TOOL,
-            self.SEARCH_BOOKMARK_TOOL,
+            self.SEARCH_BOOKMARKS_TOOL,
             self.GET_CATEGORIES_TOOL,
         ]
 
@@ -195,7 +196,7 @@ class Chat:
                 }
             )
 
-    def search_bookmark(self, query: str, max_results: int) -> str:
+    def search_bookmarks(self, query: str, max_results: int) -> str:
         """
         Searches for bookmarks that match the provided query.
 
@@ -337,8 +338,8 @@ class Chat:
                 return self.delete_bookmark(**args)
             case "add_bookmark":
                 return self.add_bookmark(**args)
-            case "search_bookmark":
-                return self.search_bookmark(**args)
+            case "search_bookmarks":
+                return self.search_bookmarks(**args)
             case "get_categories":
                 return self.get_categories()
 
