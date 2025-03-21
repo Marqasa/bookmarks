@@ -70,6 +70,17 @@ class Chat:
         },
         "strict": True,
     }
+    GET_CATEGORIES_TOOL: FunctionToolParam = {
+        "type": "function",
+        "name": "get_categories",
+        "description": "Retrieves the current hierarchical structure of all bookmark categories",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "strict": True,
+    }
 
     def __init__(self, ai: AI, bookmark_store: BookmarkStore) -> None:
         """
@@ -85,6 +96,7 @@ class Chat:
             self.ADD_BOOKMARK_TOOL,
             self.DELETE_BOOKMARK_TOOL,
             self.SEARCH_BOOKMARK_TOOL,
+            self.GET_CATEGORIES_TOOL,
         ]
 
     def add_bookmark(self, url: str, category_guidance: str | None) -> str:
@@ -217,6 +229,33 @@ class Chat:
                 }
             )
 
+    def get_categories(self) -> str:
+        """
+        Retrieves the current hierarchical structure of all bookmark categories.
+
+        Returns:
+            str: JSON string containing status and list of categories
+        """
+        try:
+            # Get all categories from the database
+            categories = self.bookmark_store.get_category_structure()
+
+            # Return the categories as JSON
+            return json.dumps(
+                {
+                    "status": "found",
+                    "message": "Categories found",
+                    "categories": categories,
+                }
+            )
+        except Exception as e:
+            return json.dumps(
+                {
+                    "status": "error",
+                    "message": f"Error occurred: {str(e)}",
+                }
+            )
+
     def chat(self, message: str, history: List[MessageDict]) -> str:
         """
         Chat with the AI and process any tool calls.
@@ -300,6 +339,8 @@ class Chat:
                 return self.add_bookmark(**args)
             case "search_bookmark":
                 return self.search_bookmark(**args)
+            case "get_categories":
+                return self.get_categories()
 
     def create_ui(
         self,
