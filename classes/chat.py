@@ -50,6 +50,27 @@ class Chat:
         },
         "strict": True,
     }
+    MOVE_BOOKMARK_TOOL: FunctionToolParam = {
+        "type": "function",
+        "name": "move_bookmark",
+        "description": "Moves a bookmark to a different category",
+        "parameters": {
+            "type": "object",
+            "required": ["url", "category_path"],
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "The URL of the bookmark to move",
+                },
+                "category_path": {
+                    "type": "string",
+                    "description": "The new category path for the bookmark, e.g., 'Category/Subcategory'",
+                },
+            },
+            "additionalProperties": False,
+        },
+        "strict": True,
+    }
     SEARCH_BOOKMARKS_TOOL: FunctionToolParam = {
         "type": "function",
         "name": "search_bookmarks",
@@ -96,6 +117,7 @@ class Chat:
         self.tools: List[FunctionToolParam] = [
             self.ADD_BOOKMARK_TOOL,
             self.DELETE_BOOKMARK_TOOL,
+            self.MOVE_BOOKMARK_TOOL,
             self.SEARCH_BOOKMARKS_TOOL,
             self.GET_CATEGORIES_TOOL,
         ]
@@ -188,6 +210,48 @@ class Chat:
                 {
                     "status": "deleted",
                     "message": "Bookmark deleted successfully",
+                }
+            )
+        except Exception as e:
+            return json.dumps(
+                {
+                    "status": "error",
+                    "message": f"Error occurred: {str(e)}",
+                }
+            )
+
+    def move_bookmark(self, url: str, category_path: str) -> str:
+        """
+        Moves a bookmark to a different category.
+
+        Args:
+            url (str): The website URL of the bookmark
+            category_path (str): The new category path for the bookmark
+        Returns:
+            str: JSON string containing status and message
+        """
+        try:
+            # Check if the URL exists in the database
+            existing_bookmark = self.bookmark_store.get_bookmark_by_url(url)
+            if not existing_bookmark:
+                return json.dumps(
+                    {
+                        "status": "not_found",
+                        "message": "Bookmark not found",
+                    }
+                )
+
+            # Update the category path
+            existing_bookmark.category = category_path
+
+            # Save the updated bookmark to the database
+            self.bookmark_store.add_bookmark(existing_bookmark)
+
+            # Return success message
+            return json.dumps(
+                {
+                    "status": "moved",
+                    "message": "Bookmark moved successfully",
                 }
             )
         except Exception as e:
@@ -348,6 +412,8 @@ class Chat:
                 return self.delete_bookmark(**args)
             case "add_bookmark":
                 return self.add_bookmark(**args)
+            case "move_bookmark":
+                return self.move_bookmark(**args)
             case "search_bookmarks":
                 return self.search_bookmarks(**args)
             case "get_categories":
