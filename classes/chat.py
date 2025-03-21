@@ -62,8 +62,8 @@ class Chat:
                     "description": "The search query to find bookmarks",
                 },
                 "max_results": {
-                    "type": ["integer", "null"],
-                    "description": "Should be null unless the user has a specific number of results in mind.",
+                    "type": "integer",
+                    "description": "The maximum number of results to return",
                 },
             },
             "additionalProperties": False,
@@ -183,19 +183,20 @@ class Chat:
                 }
             )
 
-    def search_bookmark(self, query: str, max_results: int | None) -> str:
+    def search_bookmark(self, query: str, max_results: int) -> str:
         """
         Searches for bookmarks that match the provided query.
 
         Args:
             query (str): The search query
+            max_results (int): The maximum number of results to return
         Returns:
             str: JSON string containing status and matching bookmarks
         """
         try:
             # Search for bookmarks in the database
             matching_bookmarks = self.bookmark_store.search_bookmarks(
-                query, n_results=max_results or 5
+                query, max_results
             )
 
             # Return the matching bookmarks as JSON

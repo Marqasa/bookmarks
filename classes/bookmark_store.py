@@ -77,18 +77,18 @@ class BookmarkStore:
             ids=[bookmark_id],
         )
 
-    def search_bookmarks(self, query: str, n_results: int = 5) -> List[Bookmark]:
+    def search_bookmarks(self, query: str, max_results: int) -> List[Bookmark]:
         """
         Search for bookmarks similar to the query.
 
         Args:
             query (str): The search query
-            n_results (int): Maximum number of results to return
+            max_results (int): Maximum number of results to return
 
         Returns:
             List[Bookmark]: List of Bookmark objects matching the query
         """
-        results = self.collection.query(query_texts=[query], n_results=n_results)
+        results = self.collection.query(query_texts=[query], n_results=max_results)
 
         return self._get_bookmarks_from_result(results)
 
