@@ -81,6 +81,11 @@ class Chat:
         """
         self.ai: AI = ai
         self.bookmark_store: BookmarkStore = bookmark_store
+        self.tools: List[FunctionToolParam] = [
+            self.ADD_BOOKMARK_TOOL,
+            self.DELETE_BOOKMARK_TOOL,
+            self.SEARCH_BOOKMARK_TOOL,
+        ]
 
     def add_bookmark(self, url: str, category_guidance: str | None) -> str:
         """
@@ -234,11 +239,7 @@ class Chat:
         response: Response = self.ai.client.responses.create(
             model=self.ai.model,
             input=chat_input,
-            tools=[
-                self.ADD_BOOKMARK_TOOL,
-                self.DELETE_BOOKMARK_TOOL,
-                self.SEARCH_BOOKMARK_TOOL,
-            ],
+            tools=self.tools,
         )
 
         tool_called = False
@@ -264,15 +265,18 @@ class Chat:
 
         # If a tool was called, inform the AI
         if tool_called:
+            chat_input.append(
+                {
+                    "role": "developer",
+                    "content": "If you need to perform follow-up actions, confirm with the user first.",
+                }
+            )
             # Recreate the chat input with the tool call
             response = self.ai.client.responses.create(
                 model=self.ai.model,
                 input=chat_input,
-                tools=[
-                    self.ADD_BOOKMARK_TOOL,
-                    self.DELETE_BOOKMARK_TOOL,
-                    self.SEARCH_BOOKMARK_TOOL,
-                ],
+                tools=self.tools,
+                tool_choice="none",
             )
 
         return response.output_text
