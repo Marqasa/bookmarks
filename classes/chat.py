@@ -71,6 +71,23 @@ class Chat:
         },
         "strict": True,
     }
+    GET_BOOKMARKS_BY_CATEGORY_TOOL: FunctionToolParam = {
+        "type": "function",
+        "name": "get_bookmarks_by_category",
+        "description": "Returns all bookmarks in a specified category",
+        "parameters": {
+            "type": "object",
+            "required": ["category_path"],
+            "properties": {
+                "category_path": {
+                    "type": "string",
+                    "description": "The category path to retrieve bookmarks from, e.g., 'Category/Subcategory'",
+                },
+            },
+            "additionalProperties": False,
+        },
+        "strict": True,
+    }
     SEARCH_BOOKMARKS_TOOL: FunctionToolParam = {
         "type": "function",
         "name": "search_bookmarks",
@@ -118,6 +135,7 @@ class Chat:
             self.ADD_BOOKMARK_TOOL,
             self.DELETE_BOOKMARK_TOOL,
             self.MOVE_BOOKMARK_TOOL,
+            self.GET_BOOKMARKS_BY_CATEGORY_TOOL,
             self.SEARCH_BOOKMARKS_TOOL,
             self.GET_CATEGORIES_TOOL,
         ]
@@ -252,6 +270,37 @@ class Chat:
                 {
                     "status": "moved",
                     "message": "Bookmark moved successfully",
+                }
+            )
+        except Exception as e:
+            return json.dumps(
+                {
+                    "status": "error",
+                    "message": f"Error occurred: {str(e)}",
+                }
+            )
+
+    def get_bookmarks_by_category(self, category_path: str) -> str:
+        """
+        Retrieves all bookmarks in a specified category.
+
+        Args:
+            category_path (str): The category path to retrieve bookmarks from
+        Returns:
+            str: JSON string containing status and list of bookmarks
+        """
+        try:
+            # Get all bookmarks in the specified category
+            bookmarks = self.bookmark_store.get_bookmarks_by_category(category_path)
+
+            # Return the bookmarks as JSON
+            return json.dumps(
+                {
+                    "status": "found",
+                    "message": "Bookmarks found",
+                    "bookmarks": [
+                        bookmark.to_content_string() for bookmark in bookmarks
+                    ],
                 }
             )
         except Exception as e:
@@ -414,6 +463,8 @@ class Chat:
                 return self.add_bookmark(**args)
             case "move_bookmark":
                 return self.move_bookmark(**args)
+            case "get_bookmarks_by_category":
+                return self.get_bookmarks_by_category(**args)
             case "search_bookmarks":
                 return self.search_bookmarks(**args)
             case "get_categories":
