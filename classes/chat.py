@@ -435,15 +435,31 @@ class Chat:
                     tool_choice="none",
                 )
 
-            # Limit chat history
-            if len(self.chat_history) > self.chat_history_limit:
-                self.chat_history = self.chat_history[-self.chat_history_limit :]
+            # Limit chat history to the specified limit
+            self.limit_chat_history()
 
             return response.output_text
         except Exception as e:
             # Log the error and return a user-friendly message
             print(f"Error in chat method: {str(e)}")
             return f"I encountered an error while processing your request. Please try again."
+
+    def limit_chat_history(self) -> None:
+        """
+        Removes oldest items in the chat_history to respect the chat_history_limit.
+        If a removed item is a function_call, also removes its matching function_call_output.
+        """
+        while len(self.chat_history) > self.chat_history_limit:
+            first_item = self.chat_history.pop(0)
+
+            if first_item["type"] == "function_call":
+                for i, next_item in enumerate(self.chat_history):
+                    if (
+                        next_item["type"] == "function_call_output"
+                        and next_item["call_id"] == first_item["call_id"]
+                    ):
+                        self.chat_history.pop(i)
+                        break
 
     def call_function(self, name: str, args: Dict[str, Any]) -> Any:
         """
