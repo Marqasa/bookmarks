@@ -393,6 +393,14 @@ class Chat:
             # Create a response with the AI
             response: Response = self.ai.client.responses.create(
                 model=self.ai.model,
+                instructions=(
+                    "You are a helpful assistant that can manage bookmarks.\n\n"
+                    "A bookmark is represented as:\n"
+                    "Title: 'My Bookmark'\n\n"
+                    "Category: 'Category/Subcategory'\n\n"
+                    "URL: 'https://example.com'\n\n"
+                    "Summary: 'This is a summary of the bookmark.'"
+                ),
                 input=self.chat_history,
                 tools=self.tools,
             )
