@@ -74,6 +74,27 @@ class Chat:
         },
         "strict": True,
     }
+    MOVE_BOOKMARKS_BY_CATEGORY_TOOL: FunctionToolParam = {
+        "type": "function",
+        "name": "move_bookmarks_by_category",
+        "description": "Moves all bookmarks in a category to a new category",
+        "parameters": {
+            "type": "object",
+            "required": ["parent_path", "new_parent_path"],
+            "properties": {
+                "parent_path": {
+                    "type": "string",
+                    "description": "The parent path of the category to be moved, e.g., 'Category/Subcategory'",
+                },
+                "new_parent_path": {
+                    "type": "string",
+                    "description": "The new parent path for the category, e.g., 'NewCategory/NewSubcategory'",
+                },
+            },
+            "additionalProperties": False,
+        },
+        "strict": True,
+    }
     GET_BOOKMARKS_BY_CATEGORY_TOOL: FunctionToolParam = {
         "type": "function",
         "name": "get_bookmarks_by_category",
@@ -138,6 +159,7 @@ class Chat:
             self.ADD_BOOKMARK_TOOL,
             self.DELETE_BOOKMARK_TOOL,
             self.MOVE_BOOKMARK_TOOL,
+            self.MOVE_BOOKMARKS_BY_CATEGORY_TOOL,
             self.GET_BOOKMARKS_BY_CATEGORY_TOOL,
             self.SEARCH_BOOKMARKS_TOOL,
             self.GET_CATEGORIES_TOOL,
@@ -273,6 +295,52 @@ class Chat:
                 {
                     "status": "moved",
                     "message": "Bookmark moved successfully",
+                }
+            )
+        except Exception as e:
+            return json.dumps(
+                {
+                    "status": "error",
+                    "message": f"Error occurred: {str(e)}",
+                }
+            )
+
+    def move_bookmarks_by_category(self, parent_path: str, new_parent_path: str) -> str:
+        """
+        Moves all bookmarks in a specified category to a new category.
+        Args:
+            parent_path (str): The parent path of the category to be moved
+            new_parent_path (str): The new parent path for the category
+        Returns:
+            str: JSON string containing status and message
+        """
+        try:
+            # Get all bookmarks in the specified category
+            bookmarks = self.bookmark_store.get_bookmarks_by_category_prefix(
+                parent_path
+            )
+
+            # Check if any bookmarks were found
+            if not bookmarks:
+                return json.dumps(
+                    {
+                        "status": "not_found",
+                        "message": "No bookmarks found in the specified category",
+                    }
+                )
+
+            # Move each bookmark to the new category
+            for bookmark in bookmarks:
+                bookmark.category = bookmark.category.replace(
+                    parent_path, new_parent_path
+                )
+                self.bookmark_store.add_bookmark(bookmark)
+
+            # Return success message
+            return json.dumps(
+                {
+                    "status": "moved",
+                    "message": "Bookmarks moved successfully",
                 }
             )
         except Exception as e:
@@ -520,6 +588,8 @@ class Chat:
                 return self.add_bookmark(**args)
             case "move_bookmark":
                 return self.move_bookmark(**args)
+            case "move_bookmarks_by_category":
+                return self.move_bookmarks_by_category(**args)
             case "get_bookmarks_by_category":
                 return self.get_bookmarks_by_category(**args)
             case "search_bookmarks":
