@@ -35,6 +35,20 @@ class Bookmark:
         """
         return f"Title: {self.title}\n\nCategory: {self.category}\n\nURL: {self.url}\n\nSummary: {self.summary}"
 
+    def to_dict(self) -> dict:
+        """
+        Converts the Bookmark instance to a dictionary.
+
+        Returns:
+            dict: Dictionary representation of the bookmark
+        """
+        return {
+            "url": self.url,
+            "title": self.title,
+            "summary": self.summary,
+            "category": self.category,
+        }
+
     @classmethod
     def from_content_string(cls, content: str) -> Optional["Bookmark"]:
         """

@@ -186,7 +186,7 @@ class Chat:
                     {
                         "status": "exists",
                         "message": "Bookmark already exists",
-                        "bookmark": existing_bookmark.to_content_string(),
+                        "bookmark": existing_bookmark.to_dict(),
                     }
                 )
 
@@ -213,7 +213,7 @@ class Chat:
                 {
                     "status": "created",
                     "message": "New bookmark created",
-                    "bookmark": bookmark.to_content_string(),
+                    "bookmark": bookmark.to_dict(),
                 }
             )
         except Exception as e:
@@ -369,9 +369,7 @@ class Chat:
                 {
                     "status": "found",
                     "message": "Bookmarks found",
-                    "bookmarks": [
-                        bookmark.to_content_string() for bookmark in bookmarks
-                    ],
+                    "bookmarks": [bookmark.to_dict() for bookmark in bookmarks],
                 }
             )
         except Exception as e:
@@ -404,7 +402,7 @@ class Chat:
                     "status": "found",
                     "message": "Bookmarks found",
                     "bookmarks": [
-                        bookmark.to_content_string() for bookmark in matching_bookmarks
+                        bookmark.to_dict() for bookmark in matching_bookmarks
                     ],
                 }
             )
