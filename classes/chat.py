@@ -5,7 +5,10 @@ from classes.website import Website
 from gradio import MessageDict
 from openai.types.responses.function_tool_param import FunctionToolParam
 from openai.types.responses.response import Response
-from openai.types.responses.response_input_param import ResponseInputParam
+from openai.types.responses.response_input_param import (
+    ResponseInputParam,
+    FunctionCallOutput,
+)
 from typing import Any, Dict, List
 import gradio as gr
 import json
@@ -388,7 +391,13 @@ class Chat:
             if not history:
                 self.chat_history = []
 
-            self.chat_history.append({"role": "user", "content": message})
+            self.chat_history.append(
+                {
+                    "type": "message",
+                    "role": "user",
+                    "content": message,
+                }
+            )
 
             # Create a response with the AI
             response: Response = self.ai.client.responses.create(
@@ -419,18 +428,18 @@ class Chat:
                 args = json.loads(item.arguments)
 
                 result = self.call_function(name, args)
-                self.chat_history.append(
-                    {
-                        "type": "function_call_output",
-                        "call_id": item.call_id,
-                        "output": str(result),
-                    }
+                function_call_output = FunctionCallOutput(
+                    type="function_call_output",
+                    call_id=item.call_id,
+                    output=str(result),
                 )
+                self.chat_history.append(function_call_output)
 
             # If a tool was called, inform the AI
             if tool_called:
                 self.chat_history.append(
                     {
+                        "type": "message",
                         "role": "developer",
                         "content": "If you need to perform follow-up actions, confirm with the user first.",
                     }
@@ -460,11 +469,35 @@ class Chat:
         while len(self.chat_history) > self.chat_history_limit:
             first_item = self.chat_history.pop(0)
 
-            if first_item["type"] == "function_call":
+            # Get type and call_id, handling both object and dict structures
+            first_item_type = (
+                getattr(first_item, "type", None)
+                if not isinstance(first_item, dict)
+                else first_item.get("type")
+            )
+            first_item_call_id = (
+                getattr(first_item, "call_id", None)
+                if not isinstance(first_item, dict)
+                else first_item.get("call_id")
+            )
+
+            if first_item_type == "function_call":
                 for i, next_item in enumerate(self.chat_history):
+                    # Get type and call_id, handling both object and dict structures
+                    next_item_type = (
+                        getattr(next_item, "type", None)
+                        if not isinstance(next_item, dict)
+                        else next_item.get("type")
+                    )
+                    next_item_call_id = (
+                        getattr(next_item, "call_id", None)
+                        if not isinstance(next_item, dict)
+                        else next_item.get("call_id")
+                    )
+
                     if (
-                        next_item["type"] == "function_call_output"
-                        and next_item["call_id"] == first_item["call_id"]
+                        next_item_type == "function_call_output"
+                        and next_item_call_id == first_item_call_id
                     ):
                         self.chat_history.pop(i)
                         break
