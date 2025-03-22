@@ -53,6 +53,23 @@ class Chat:
         },
         "strict": True,
     }
+    DELETE_BOOKMARKS_BY_CATEGORY_TOOL: FunctionToolParam = {
+        "type": "function",
+        "name": "delete_bookmarks_by_category",
+        "description": "Deletes all bookmarks in a specified category",
+        "parameters": {
+            "type": "object",
+            "required": ["category_path"],
+            "properties": {
+                "category_path": {
+                    "type": "string",
+                    "description": "The category path to delete bookmarks from, e.g., 'Category/Subcategory'",
+                },
+            },
+            "additionalProperties": False,
+        },
+        "strict": True,
+    }
     MOVE_BOOKMARK_TOOL: FunctionToolParam = {
         "type": "function",
         "name": "move_bookmark",
@@ -158,6 +175,7 @@ class Chat:
         self.tools: List[FunctionToolParam] = [
             self.ADD_BOOKMARK_TOOL,
             self.DELETE_BOOKMARK_TOOL,
+            self.DELETE_BOOKMARKS_BY_CATEGORY_TOOL,
             self.MOVE_BOOKMARK_TOOL,
             self.MOVE_BOOKMARKS_BY_CATEGORY_TOOL,
             self.GET_BOOKMARKS_BY_CATEGORY_TOOL,
@@ -253,6 +271,49 @@ class Chat:
                 {
                     "status": "deleted",
                     "message": "Bookmark deleted successfully",
+                }
+            )
+        except Exception as e:
+            return json.dumps(
+                {
+                    "status": "error",
+                    "message": f"Error occurred: {str(e)}",
+                }
+            )
+
+    def delete_bookmarks_by_category(self, category_path: str) -> str:
+        """
+        Deletes all bookmarks in a specified category.
+
+        Args:
+            category_path (str): The category path to delete bookmarks from
+        Returns:
+            str: JSON string containing status and message
+        """
+        try:
+            # Get all bookmarks in the specified category
+            bookmarks = self.bookmark_store.get_bookmarks_by_category_prefix(
+                category_path
+            )
+
+            # Check if any bookmarks were found
+            if not bookmarks:
+                return json.dumps(
+                    {
+                        "status": "not_found",
+                        "message": "No bookmarks found in the specified category",
+                    }
+                )
+
+            # Delete each bookmark from the database
+            for bookmark in bookmarks:
+                self.bookmark_store.delete_bookmark(bookmark.url)
+
+            # Return success message
+            return json.dumps(
+                {
+                    "status": "deleted",
+                    "message": "Bookmarks deleted successfully",
                 }
             )
         except Exception as e:
@@ -582,6 +643,8 @@ class Chat:
         match name:
             case "delete_bookmark":
                 return self.delete_bookmark(**args)
+            case "delete_bookmarks_by_category":
+                return self.delete_bookmarks_by_category(**args)
             case "add_bookmark":
                 return self.add_bookmark(**args)
             case "move_bookmark":
