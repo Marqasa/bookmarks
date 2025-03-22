@@ -165,7 +165,7 @@ class Chat:
             self.GET_CATEGORIES_TOOL,
         ]
         self.chat_history: ResponseInputParam = []
-        self.chat_history_limit: int = 10
+        self.chat_history_limit: int = 25
 
     def add_bookmark(self, url: str, category_guidance: str | None) -> str:
         """
