@@ -473,9 +473,9 @@ class Chat:
                 instructions=(
                     "You are a helpful assistant that can manage bookmarks.\n\n"
                     "A bookmark is represented as:\n"
-                    "Title: 'My Bookmark'\n\n"
-                    "Category: 'Category/Subcategory'\n\n"
-                    "URL: 'https://example.com'\n\n"
+                    "Title: 'My Bookmark'\n"
+                    "Category: 'Category/Subcategory'\n"
+                    "URL: 'https://example.com'\n"
                     "Summary: 'This is a summary of the bookmark.'"
                 ),
                 input=self.chat_history,
