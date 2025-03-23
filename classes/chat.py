@@ -15,21 +15,22 @@ import json
 
 
 class Chat:
-    ADD_BOOKMARK_TOOL: FunctionToolParam = {
+    ADD_BOOKMARKS_TOOL: FunctionToolParam = {
         "type": "function",
-        "name": "add_bookmark",
-        "description": "Adds a URL to the user's bookmarks",
+        "name": "add_bookmarks",
+        "description": "Add a list of URLs to the user's bookmarks",
         "parameters": {
             "type": "object",
-            "required": ["url", "category_guidance"],
+            "required": ["urls", "category_guidance"],
             "properties": {
-                "url": {
-                    "type": "string",
-                    "description": "The URL to be bookmarked",
+                "urls": {
+                    "type": "array",
+                    "description": "List of URLs to be bookmarked",
+                    "items": {"type": "string", "description": "A single URL"},
                 },
                 "category_guidance": {
                     "type": ["string", "null"],
-                    "description": "This should be null unless the user has a specific category in mind.",
+                    "description": "This should be null unless the user has a specific category in mind",
                 },
             },
             "additionalProperties": False,
@@ -173,7 +174,7 @@ class Chat:
         self.ai: AI = ai
         self.bookmark_store: BookmarkStore = bookmark_store
         self.tools: List[FunctionToolParam] = [
-            self.ADD_BOOKMARK_TOOL,
+            self.ADD_BOOKMARKS_TOOL,
             self.DELETE_BOOKMARK_TOOL,
             self.DELETE_BOOKMARKS_BY_CATEGORY_TOOL,
             self.MOVE_BOOKMARK_TOOL,
@@ -185,53 +186,38 @@ class Chat:
         self.chat_history: ResponseInputParam = []
         self.chat_history_limit: int = 25
 
-    def add_bookmark(self, url: str, category_guidance: str | None) -> str:
+    def add_bookmarks(self, urls: List[str], category_guidance: str | None) -> str:
         """
-        Fetches and summarizes the content from the provided URL,
-        then creates a bookmark and stores it in the database.
+        Adds a list of bookmarks to the database.
 
         Args:
-            url (str): The website URL to fetch
-
+            urls (List[str]): List of URLs to be added
+            category_guidance (str | None): Category guidance for the bookmarks
         Returns:
-            str: JSON string containing status, message, and bookmark data
+            str: JSON string containing status and message
         """
         try:
-            # Check if the URL already exists in the database
-            existing_bookmark = self.bookmark_store.get_bookmark_by_url(url)
-            if existing_bookmark:
-                return json.dumps(
-                    {
-                        "status": "exists",
-                        "message": "Bookmark already exists",
-                        "bookmark": existing_bookmark.to_dict(),
-                    }
+            for url in urls:
+                website = Website(url)
+                bookmark = Bookmark(
+                    url=url,
+                    title=website.title,
+                    summary=website.description,
                 )
+                existing_categories = self.bookmark_store.get_all_categories()
+                category = self.ai.generate_category(
+                    bookmark,
+                    existing_categories=existing_categories,
+                    category_guidance=category_guidance,
+                )
+                bookmark.category = category
+                self.bookmark_store.add_bookmark(bookmark)
 
-            # Create a new bookmark
-            website = Website(url)
-            bookmark = Bookmark(
-                url=url, title=website.title, summary=website.description
-            )
-
-            # Generate a category for the bookmark
-            existing_categories = self.bookmark_store.get_all_categories()
-            category = self.ai.generate_category(
-                bookmark,
-                existing_categories=existing_categories,
-                category_guidance=category_guidance,
-            )
-            bookmark.category = category
-
-            # Store the bookmark in the database
-            self.bookmark_store.add_bookmark(bookmark)
-
-            # Return the bookmark data as JSON
+            # Return success message
             return json.dumps(
                 {
-                    "status": "created",
-                    "message": "New bookmark created",
-                    "bookmark": bookmark.to_dict(),
+                    "status": "added",
+                    "message": "Bookmarks added successfully",
                 }
             )
         except Exception as e:
@@ -239,7 +225,6 @@ class Chat:
                 {
                     "status": "error",
                     "message": f"Error occurred: {str(e)}",
-                    "bookmark": None,
                 }
             )
 
@@ -645,8 +630,8 @@ class Chat:
                 return self.delete_bookmark(**args)
             case "delete_bookmarks_by_category":
                 return self.delete_bookmarks_by_category(**args)
-            case "add_bookmark":
-                return self.add_bookmark(**args)
+            case "add_bookmarks":
+                return self.add_bookmarks(**args)
             case "move_bookmark":
                 return self.move_bookmark(**args)
             case "move_bookmarks_by_category":
