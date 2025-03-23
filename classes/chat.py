@@ -21,16 +21,12 @@ class Chat:
         "description": "Add a list of URLs to the user's bookmarks",
         "parameters": {
             "type": "object",
-            "required": ["urls", "category_guidance"],
+            "required": ["urls"],
             "properties": {
                 "urls": {
                     "type": "array",
                     "description": "List of URLs to be bookmarked",
                     "items": {"type": "string", "description": "A single URL"},
-                },
-                "category_guidance": {
-                    "type": ["string", "null"],
-                    "description": "This should be null unless the user has a specific category in mind",
                 },
             },
             "additionalProperties": False,
@@ -151,17 +147,6 @@ class Chat:
         },
         "strict": True,
     }
-    GET_CATEGORIES_TOOL: FunctionToolParam = {
-        "type": "function",
-        "name": "get_categories",
-        "description": "Retrieves the current hierarchical structure of all bookmark categories",
-        "parameters": {
-            "type": "object",
-            "properties": {},
-            "additionalProperties": False,
-        },
-        "strict": True,
-    }
 
     def __init__(self, ai: AI, bookmark_store: BookmarkStore) -> None:
         """
@@ -181,52 +166,51 @@ class Chat:
             self.MOVE_BOOKMARKS_BY_CATEGORY_TOOL,
             self.GET_BOOKMARKS_BY_CATEGORY_TOOL,
             self.SEARCH_BOOKMARKS_TOOL,
-            self.GET_CATEGORIES_TOOL,
         ]
         self.chat_history: ResponseInputParam = []
         self.chat_history_limit: int = 25
 
-    def add_bookmarks(self, urls: List[str], category_guidance: str | None) -> str:
+    def add_bookmarks(self, urls: List[str]) -> str:
         """
         Adds a list of bookmarks to the database.
 
         Args:
             urls (List[str]): List of URLs to be added
-            category_guidance (str | None): Category guidance for the bookmarks
         Returns:
             str: JSON string containing status and message
         """
-        try:
-            for url in urls:
+        added_bookmarks: List[Bookmark] = []
+
+        for url in urls:
+            try:
                 website = Website(url)
                 bookmark = Bookmark(
                     url=url,
                     title=website.title,
+                    category="Uncategorized",
                     summary=website.description,
                 )
-                existing_categories = self.bookmark_store.get_all_categories()
-                category = self.ai.generate_category(
-                    bookmark,
-                    existing_categories=existing_categories,
-                    category_guidance=category_guidance,
-                )
-                bookmark.category = category
                 self.bookmark_store.add_bookmark(bookmark)
+                added_bookmarks.append(bookmark)
+            except Exception as e:
+                print(f"Error adding bookmark for {url}: {str(e)}")
 
-            # Return success message
+        # Check if any bookmarks were added
+        if not added_bookmarks:
             return json.dumps(
                 {
-                    "status": "added",
-                    "message": "Bookmarks added successfully",
+                    "status": "not_added",
+                    "message": "No bookmarks were added successfully",
                 }
             )
-        except Exception as e:
-            return json.dumps(
-                {
-                    "status": "error",
-                    "message": f"Error occurred: {str(e)}",
-                }
-            )
+        # Return success message
+        return json.dumps(
+            {
+                "status": "added",
+                "message": "Bookmarks added successfully",
+                "bookmarks": [bookmark.to_dict() for bookmark in added_bookmarks],
+            }
+        )
 
     def delete_bookmark(self, url: str) -> str:
         """
@@ -460,33 +444,6 @@ class Chat:
                 }
             )
 
-    def get_categories(self) -> str:
-        """
-        Retrieves the current hierarchical structure of all bookmark categories.
-
-        Returns:
-            str: JSON string containing status and list of categories
-        """
-        try:
-            # Get all categories from the database
-            categories = self.bookmark_store.get_category_structure()
-
-            # Return the categories as JSON
-            return json.dumps(
-                {
-                    "status": "found",
-                    "message": "Categories found",
-                    "categories": categories,
-                }
-            )
-        except Exception as e:
-            return json.dumps(
-                {
-                    "status": "error",
-                    "message": f"Error occurred: {str(e)}",
-                }
-            )
-
     def chat(self, message: str, history: List[MessageDict]) -> str:
         """
         Chat with the AI and process any tool calls.
@@ -511,17 +468,17 @@ class Chat:
                 }
             )
 
+            category_structure = self.bookmark_store.get_category_structure()
+            instructions = (
+                "You are a helpful assistant that can manage bookmarks.\n\n"
+                "Current categories:\n"
+                f"{json.dumps(category_structure, indent=2)}\n\n"
+            )
+
             # Create a response with the AI
             response: Response = self.ai.client.responses.create(
                 model=self.ai.model,
-                instructions=(
-                    "You are a helpful assistant that can manage bookmarks.\n\n"
-                    "A bookmark is represented as:\n"
-                    "Title: 'My Bookmark'\n"
-                    "Category: 'Category/Subcategory'\n"
-                    "URL: 'https://example.com'\n"
-                    "Summary: 'This is a summary of the bookmark.'"
-                ),
+                instructions=instructions,
                 input=self.chat_history,
                 tools=self.tools,
             )
@@ -547,22 +504,28 @@ class Chat:
                 )
                 self.chat_history.append(function_call_output)
 
+                if name == "add_bookmarks":
+                    self.chat_history.append(
+                        {
+                            "type": "message",
+                            "role": "developer",
+                            "content": "For each added bookmark, decide on a category and ask the user for confirmation.",
+                        }
+                    )
+
             # If a tool was called, inform the AI
             if tool_called:
-                self.chat_history.append(
-                    {
-                        "type": "message",
-                        "role": "developer",
-                        "content": "If you need to perform follow-up actions, confirm with the user first.",
-                    }
-                )
                 # Recreate the chat input with the tool call
                 response = self.ai.client.responses.create(
                     model=self.ai.model,
+                    instructions=instructions,
                     input=self.chat_history,
                     tools=self.tools,
                     tool_choice="none",
                 )
+
+                for item in response.output:
+                    self.chat_history.append(item)
 
             # Limit chat history to the specified limit
             self.limit_chat_history()
@@ -665,12 +628,11 @@ class Chat:
             description=description,
         )
 
-    def launch(self, inbrowser: bool = True, **kwargs: Any) -> Any:
+    def launch(self, **kwargs: Any) -> Any:
         """
         Launch the chat interface.
 
         Args:
-            inbrowser (bool): Whether to open in browser
             **kwargs: Additional arguments to pass to the launch method
 
         Returns:
