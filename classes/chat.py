@@ -468,17 +468,10 @@ class Chat:
                 }
             )
 
-            category_structure = self.bookmark_store.get_category_structure()
-            instructions = (
-                "You are a helpful assistant that can manage bookmarks.\n\n"
-                "Current categories:\n"
-                f"{json.dumps(category_structure, indent=2)}\n\n"
-            )
-
             # Create a response with the AI
             response: Response = self.ai.client.responses.create(
                 model=self.ai.model,
-                instructions=instructions,
+                instructions=self.get_chat_instructions(),
                 input=self.chat_history,
                 tools=self.tools,
             )
@@ -518,7 +511,7 @@ class Chat:
                 # Recreate the chat input with the tool call
                 response = self.ai.client.responses.create(
                     model=self.ai.model,
-                    instructions=instructions,
+                    instructions=self.get_chat_instructions(),
                     input=self.chat_history,
                     tools=self.tools,
                     tool_choice="none",
@@ -535,6 +528,19 @@ class Chat:
             # Log the error and return a user-friendly message
             print(f"Error in chat method: {str(e)}")
             return f"I encountered an error while processing your request. Please try again."
+
+    def get_chat_instructions(self) -> str:
+        """
+        Returns the instructions for the AI chat.
+
+        Returns:
+            str: Instructions for the AI
+        """
+        return (
+            "You are a helpful assistant that can manage bookmarks.\n\n"
+            "Current categories:\n"
+            f"{json.dumps(self.bookmark_store.get_category_structure(), indent=2)}\n\n"
+        )
 
     def limit_chat_history(self) -> None:
         """
