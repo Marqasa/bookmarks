@@ -33,17 +33,21 @@ class Chat:
         },
         "strict": True,
     }
-    DELETE_BOOKMARK_TOOL: FunctionToolParam = {
+    DELETE_BOOKMARKS_TOOL: FunctionToolParam = {
         "type": "function",
-        "name": "delete_bookmark",
-        "description": "Deletes a URL from the user's bookmarks",
+        "name": "delete_bookmarks",
+        "description": "Delete multiple bookmarks using their URLs",
         "parameters": {
             "type": "object",
-            "required": ["url"],
+            "required": ["urls"],
             "properties": {
-                "url": {
-                    "type": "string",
-                    "description": "The URL to be deleted from bookmarks",
+                "urls": {
+                    "type": "array",
+                    "description": "List of URLs to delete",
+                    "items": {
+                        "type": "string",
+                        "description": "A single URL",
+                    },
                 },
             },
             "additionalProperties": False,
@@ -160,7 +164,7 @@ class Chat:
         self.bookmark_store: BookmarkStore = bookmark_store
         self.tools: List[FunctionToolParam] = [
             self.ADD_BOOKMARKS_TOOL,
-            self.DELETE_BOOKMARK_TOOL,
+            self.DELETE_BOOKMARKS_TOOL,
             self.DELETE_BOOKMARKS_BY_CATEGORY_TOOL,
             self.MOVE_BOOKMARK_TOOL,
             self.MOVE_BOOKMARKS_BY_CATEGORY_TOOL,
@@ -212,43 +216,40 @@ class Chat:
             }
         )
 
-    def delete_bookmark(self, url: str) -> str:
+    def delete_bookmarks(self, urls: List[str]) -> str:
         """
-        Deletes a bookmark from the database using the provided URL.
+        Deletes multiple bookmarks using their URLs.
 
         Args:
-            url (str): The website URL to delete
+            urls (List[str]): List of URLs to delete
         Returns:
-            str: JSON string containing status and message
+            str: JSON string containing status, message, and detailed results with lists of
+                 successfully deleted URLs, URLs not found, and any errors encountered
         """
-        try:
-            # Check if the URL exists in the database
-            existing_bookmark = self.bookmark_store.get_bookmark_by_url(url)
-            if not existing_bookmark:
-                return json.dumps(
-                    {
-                        "status": "not_found",
-                        "message": "Bookmark not found",
-                    }
-                )
+        results = {"deleted": [], "not_found": [], "errors": []}
 
-            # Delete the bookmark from the database
-            self.bookmark_store.delete_bookmark(existing_bookmark.url)
+        for url in urls:
+            try:
+                # Check if the URL exists in the database
+                existing_bookmark = self.bookmark_store.get_bookmark_by_url(url)
+                if not existing_bookmark:
+                    results["not_found"].append(url)
+                    continue
 
-            # Return success message
-            return json.dumps(
-                {
-                    "status": "deleted",
-                    "message": "Bookmark deleted successfully",
-                }
-            )
-        except Exception as e:
-            return json.dumps(
-                {
-                    "status": "error",
-                    "message": f"Error occurred: {str(e)}",
-                }
-            )
+                # Delete the bookmark from the database
+                self.bookmark_store.delete_bookmark(url)
+                results["deleted"].append(url)
+
+            except Exception as e:
+                results["errors"].append({"url": url, "error": str(e)})
+
+        return json.dumps(
+            {
+                "status": "completed",
+                "message": f"Processed {len(urls)} URLs: {len(results['deleted'])} deleted, {len(results['not_found'])} not found, {len(results['errors'])} errors",
+                "results": results,
+            }
+        )
 
     def delete_bookmarks_by_category(self, category_path: str) -> str:
         """
@@ -586,17 +587,17 @@ class Chat:
     def call_function(self, name: str, args: Dict[str, Any]) -> Any:
         """
         Call the appropriate function based on the name and arguments.
-
         Args:
             name (str): The name of the function to call
             args (Dict[str, Any]): The arguments for the function
-
         Returns:
             Any: The result of the function call
         """
         match name:
             case "delete_bookmark":
                 return self.delete_bookmark(**args)
+            case "delete_bookmarks":
+                return self.delete_bookmarks(**args)
             case "delete_bookmarks_by_category":
                 return self.delete_bookmarks_by_category(**args)
             case "add_bookmarks":
