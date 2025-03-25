@@ -19,15 +19,28 @@ A smart bookmark management system that uses AI to help you organize and retriev
     cd bookmarks
     ```
 
-2. Install dependencies:
+2. Set up a virtual environment:
+
+    ```bash
+    python -m venv venv
+
+    # On Windows
+    venv\Scripts\activate
+
+    # On macOS/Linux
+    source venv/bin/activate
+    ```
+
+3. Install dependencies:
 
     ```bash
     pip install -r requirements.txt
     ```
 
-3. Create a `.env` file in the project root with your OpenAI API key:
+4. Create a `.env` file in the project root with your OpenAI API key:
     ```
     OPENAI_API_KEY=your_api_key_here
+    MODEL=gpt-4o  # Optional: specify which OpenAI model to use (defaults to gpt-4o-mini)
     ```
 
 ## Usage
