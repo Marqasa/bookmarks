@@ -18,15 +18,18 @@ class Chat:
     ADD_BOOKMARKS_TOOL: FunctionToolParam = {
         "type": "function",
         "name": "add_bookmarks",
-        "description": "Add a list of URLs to the user's bookmarks",
+        "description": "Add multiple bookmarks using a list of URLs",
         "parameters": {
             "type": "object",
             "required": ["urls"],
             "properties": {
                 "urls": {
                     "type": "array",
-                    "description": "List of URLs to be bookmarked",
-                    "items": {"type": "string", "description": "A single URL"},
+                    "description": "List of URLs to add",
+                    "items": {
+                        "type": "string",
+                        "description": "A single URL",
+                    },
                 },
             },
             "additionalProperties": False,
@@ -36,7 +39,7 @@ class Chat:
     DELETE_BOOKMARKS_TOOL: FunctionToolParam = {
         "type": "function",
         "name": "delete_bookmarks",
-        "description": "Delete multiple bookmarks using their URLs",
+        "description": "Delete multiple bookmarks using a list of URLs",
         "parameters": {
             "type": "object",
             "required": ["urls"],
@@ -176,14 +179,15 @@ class Chat:
 
     def add_bookmarks(self, urls: List[str]) -> str:
         """
-        Adds a list of bookmarks to the database.
+        Adds multiple bookmarks using a list of URLs.
 
         Args:
             urls (List[str]): List of URLs to be added
         Returns:
-            str: JSON string containing status and message
+            str: JSON string containing status, message, and detailed results with lists of
+                 successfully added bookmarks and any errors encountered
         """
-        added_bookmarks: List[Bookmark] = []
+        results = {"added": [], "errors": []}
 
         for url in urls:
             try:
@@ -195,24 +199,16 @@ class Chat:
                     summary=website.description,
                 )
                 self.bookmark_store.add_bookmark(bookmark)
-                added_bookmarks.append(bookmark)
+                results["added"].append(bookmark.to_dict())
             except Exception as e:
+                results["errors"].append({"url": url, "error": str(e)})
                 print(f"Error adding bookmark for {url}: {str(e)}")
 
-        # Check if any bookmarks were added
-        if not added_bookmarks:
-            return json.dumps(
-                {
-                    "status": "not_added",
-                    "message": "No bookmarks were added successfully",
-                }
-            )
-        # Return success message
         return json.dumps(
             {
-                "status": "added",
-                "message": "Bookmarks added successfully",
-                "bookmarks": [bookmark.to_dict() for bookmark in added_bookmarks],
+                "status": "completed",
+                "message": f"Processed {len(urls)} URLs: {len(results['added'])} added, {len(results['errors'])} errors",
+                "results": results,
             }
         )
 
