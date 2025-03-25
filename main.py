@@ -7,10 +7,11 @@ import os
 # Load environment variables
 load_dotenv()
 api_key = os.getenv("OPENAI_API_KEY")
+model = os.getenv("MODEL")
 
 # Initialize the bookmark store and AI
 bookmark_store = BookmarkStore()
-ai = AI(api_key=api_key)
+ai = AI(api_key=api_key, model=model)
 
 # Initialize the chat
 chat = Chat(ai, bookmark_store)
